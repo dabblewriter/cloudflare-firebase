@@ -1,5 +1,5 @@
 {
-  "name": "cloudflare-firebase",
+  "name": "workers-firebase",
   "version": "0.0.1",
   "scripts": {
     "start": "tsc --watch",
