@@ -1,9 +1,10 @@
 {
   "name": "workers-firebase",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "scripts": {
     "start": "tsc --watch",
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "npm run build"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
