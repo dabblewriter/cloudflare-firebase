@@ -104,7 +104,7 @@ function convertSignInResponse(response: SignInFirebaseResponse): Tokens {
 let publicKeys: Record<string, JsonWebKey>;
 async function getPublicKey(kid: string): Promise<JsonWebKey> {
   if (!publicKeys) {
-    // Found this resource here https://stackoverflow.com/a/71988314/835542 since the documented one provides x509 certs, not useful directly
+    // Found this resource here https://stackoverflow.com/a/71988314/835542 since the documented one provides x509 certs, not directly useful
     const response = await fetch('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com');
     const age = parseInt(response.headers.get('Cache-Control').replace(/^.*max-age=(\d+).*$/, '$1'));
     setTimeout(() => publicKeys = undefined, age * 1000);
