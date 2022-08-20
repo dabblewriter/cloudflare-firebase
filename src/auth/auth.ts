@@ -1,6 +1,7 @@
 import type { Settings } from '../types';
+import type { SignInFirebaseResponse, SignInResponse, TokenResponse, Tokens, User } from './types';
 import { FirebaseService } from '../service';
-import { SignInFirebaseResponse, SignInResponse, TokenResponse, Tokens, User } from './types';
+import jwt from '@tsndr/cloudflare-worker-jwt';
 
 const returnSecureToken = true; // used for adding boolean in requests
 
@@ -11,6 +12,24 @@ export class Auth extends FirebaseService {
   constructor(settings: Settings, apiKey: string) {
     super('auth', 'https://identitytoolkit.googleapis.com/v1/accounts', settings, apiKey);
   }
+
+  async verify(token: string) {
+    if (typeof token !== 'string') throw new Error('JWT token must be a string');
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) throw new Error('JWT token must consist of 3 parts');
+    const { header: { alg, kid }, payload } = jwt.decode(token) as {header: any, payload: any};
+    const importAlgorithm = (jwt as any).algorithms[alg];
+    if (!importAlgorithm) throw new Error('JWT algorithm not found');
+    if (payload.nbf && payload.nbf > Math.floor(Date.now() / 1000)) throw 'JWT token not yet valid';
+    if (payload.exp && payload.exp <= Math.floor(Date.now() / 1000)) throw 'JWT token expired';
+    const jsonWebKey = await getPublicKey(kid);
+    if (alg !== 'RS256' || !jsonWebKey || payload.iss !== `https://securetoken.google.com/${this.settings.projectId}`) throw new Error('JWT invalid');
+    const key = await crypto.subtle.importKey('jwk', jsonWebKey, importAlgorithm, false, ['verify']);
+    const verified = await crypto.subtle.verify(importAlgorithm, key, Base64URL.parse(tokenParts[2]), (jwt as any)._utf8ToUint8Array(`${tokenParts[0]}.${tokenParts[1]}`));
+    if (!verified) throw new Error('JWT invalid');
+    return payload;
+  }
+
 
   async signInWithEmailAndPassword(email: string, password: string): Promise<SignInResponse> {
     email = email && email.toLowerCase();
@@ -80,4 +99,25 @@ function convertUserData(user: any): User {
 function convertSignInResponse(response: SignInFirebaseResponse): Tokens {
   const { idToken, refreshToken } = response;
   return { idToken, refreshToken };
+}
+
+let publicKeys: Record<string, JsonWebKey>;
+async function getPublicKey(kid: string): Promise<JsonWebKey> {
+  if (!publicKeys) {
+    // Found this resource here https://stackoverflow.com/a/71988314/835542 since the documented one provides x509 certs, not useful directly
+    const response = await fetch('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com');
+    const age = parseInt(response.headers.get('Cache-Control').replace(/^.*max-age=(\d+).*$/, '$1'));
+    setTimeout(() => publicKeys = undefined, age * 1000);
+    publicKeys = (await response.json() as any).keys.reduce((map, key) => (map[key.kid] = key) && map, {});
+  }
+  return publicKeys[kid];
+}
+
+class Base64URL {
+  static parse(s: string) {
+    return new Uint8Array(Array.prototype.map.call(atob(s.replace(/-/g, '+').replace(/_/g, '/').replace(/\s/g, '')), (c: string) => c.charCodeAt(0)));
+  }
+  static stringify(a: string) {
+    return btoa(String.fromCharCode.apply(0, a)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  }
 }
