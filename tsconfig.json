@@ -3,6 +3,7 @@
     "target": "es2021",
     "outDir": "dist",
     "declaration": true,
+    "declarationMap": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowJs": true,

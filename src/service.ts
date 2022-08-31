@@ -25,4 +25,21 @@ export class FirebaseService {
     });
     return await response.json() as T;
   }
+
+  userRequest<T>(method: HTTPMethod, path: string, search?: URLSearchParams, body?: object): Promise<T>;
+  userRequest<T>(method: HTTPMethod, path: string, body?: object): Promise<T>;
+  async userRequest<T>(method: HTTPMethod, path?: string, searchOrBody?: URLSearchParams | object, body?: object): Promise<T> {
+    const searchParams = searchOrBody instanceof URLSearchParams ? searchOrBody : new URLSearchParams();
+    searchParams.set('key', this.apiKey);
+    if (!body && searchOrBody && !(searchOrBody instanceof URLSearchParams)) body = searchOrBody;
+    if (path && path[0] !== ':' && path[0] !== '/') path = '/' + path;
+    const response = await fetch(`${this.apiUrl}${path}?${searchParams}`, {
+      method,
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return await response.json() as T;
+  }
 }

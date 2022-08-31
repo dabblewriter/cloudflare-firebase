@@ -7,7 +7,7 @@ const returnSecureToken = true; // used for adding boolean in requests
 
 export class Auth extends FirebaseService {
   apiUrl: 'https://identitytoolkit.googleapis.com/v1/accounts';
-  getToken: () => Promise<string>;
+  getToken: (claims?: object) => Promise<string>;
 
   constructor(settings: Settings, apiKey: string) {
     super('auth', 'https://identitytoolkit.googleapis.com/v1/accounts', settings, apiKey);
@@ -33,14 +33,22 @@ export class Auth extends FirebaseService {
   async signInWithEmailAndPassword(email: string, password: string): Promise<SignInResponse> {
     email = email && email.toLowerCase();
     const data = { email, password, returnSecureToken };
-    const result: SignInFirebaseResponse = await this.request('POST', ':signInWithPassword', data);
+    const result: SignInFirebaseResponse = await this.userRequest('POST', ':signInWithPassword', data);
     const tokens = convertSignInResponse(result);
-    const user = await this._getUserData(tokens.idToken);
+    const user = await this.getUser(tokens.idToken);
     return { user, tokens };
   }
 
-  async refreshToken(token: string) {
-    const data = { grant_type: 'refresh_token', refresh_token: token };
+  async signInWithCustomToken(token: string): Promise<SignInResponse> {
+    const data = { token, returnSecureToken };
+    const result: SignInFirebaseResponse = await this.userRequest('POST', ':signInWithCustomToken', data);
+    const tokens = convertSignInResponse(result);
+    const user = await this.getUser(tokens.idToken);
+    return { user, tokens };
+  }
+
+  async refreshToken(refreshToken: string) {
+    const data = { grant_type: 'refresh_token', refresh_token: refreshToken };
     const result: TokenResponse = await POST(`https://securetoken.googleapis.com/v1/token?key=${this.apiKey}`, data);
     const tokens: Tokens = {
       idToken: result.id_token,
@@ -51,19 +59,63 @@ export class Auth extends FirebaseService {
 
   async signUp(email:string , password: string) {
     const data = { email, password, returnSecureToken };
-    const result: any = await this.request('POST', ':signUp', data);
+    const result: any = await this.userRequest('POST', ':signUp', data);
     const tokens = convertSignInResponse(result);
-    const user = await this._getUserData(tokens.idToken);
+    const user = await this.getUser(tokens.idToken);
     return { user, tokens };
   }
 
-  async requestCode(data: RequestCode) {
-    return await this.request('POST', ':sendOobCode', data);
+  async getUser(idToken: string) {
+    const response: any = await this.userRequest('POST', ':lookup', { idToken });
+    return convertUserData(response.users[0]);
   }
 
-  private async _getUserData(idToken: string) {
-    const response: any = await this.request('POST', ':lookup', { idToken });
-    return convertUserData(response.users[0]);
+  async updateUser(idToken: string, updates: any) {
+    if (!idToken || typeof idToken !== 'string' || !updates || typeof updates !== 'object' || Array.isArray(updates)) {
+      throw new Error('INVALID_DATA');
+    }
+    const { name, email, photoUrl } = updates;
+    updates = { displayName: name, email, photoUrl, idToken, returnSecureToken: true };
+    const result = await this.userRequest('POST', ':update', updates) as SignInFirebaseResponse;
+    return convertSignInResponse(result);
+  }
+
+  async updatePassword(idToken: string, password: string) {
+    if (!idToken || typeof idToken !== 'string' || !password || typeof password !== 'string') {
+      throw new Error('INVALID_DATA');
+    }
+    const result = await this.userRequest('POST', ':update', { password, idToken, returnSecureToken }) as SignInFirebaseResponse;
+    return convertSignInResponse(result);
+  }
+
+  async deleteUser(idToken: string) {
+    await this.userRequest('POST', ':delete', { idToken });
+  }
+
+  async sendVerification(idToken: string) {
+    const data = { requestType: 'VERIFY_EMAIL', idToken };
+    await this.userRequest('POST', ':sendOobCode', data);
+  }
+
+  async verifyAccount(oobCode: string) {
+    const result = await this.userRequest('POST', ':update', { oobCode }) as SignInFirebaseResponse;
+    return convertSignInResponse(result);
+  }
+
+  async requestPasswordReset(email: string) {
+    const data = { requestType: 'PASSWORD_RESET', email };
+    await this.userRequest('POST', ':sendOobCode', data);
+  }
+
+  async resetPassword(oobCode: string, newPassword: string) {
+    const data = { oobCode, newPassword };
+    await this.userRequest('POST', ':resetPassword', data);
+  }
+
+  async createCustomToken(idToken: string, uid: string) {
+    const user = await this.getUser(idToken);
+    if (!user.claims.admin) throw new Error('UNAUTHORIZED');
+    return await this.getToken({ uid });
   }
 }
 

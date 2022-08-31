@@ -1,7 +1,9 @@
+export * from './auth/types';
+export * from './firestore/types';
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
-export type TokenGetter = () => Promise<string>;
+export type TokenGetter = (claims?: object) => Promise<string>;
 
 export interface ServiceAccount {
   projectId: string;

@@ -12,9 +12,9 @@ export function getTokenGetter(settings: ServiceAccount, service: keyof Aud): To
   let token: string;
   let tokenExp: number;
 
-  return async function getToken() {
+  return async function getToken(claims?: object) {
     if (!tokenExp || now() > tokenExp - 60) {
-      token = await createToken(settings, service);
+      token = await createToken(settings, service, claims);
       tokenExp = now() + exp;
     }
     return token;
@@ -22,7 +22,7 @@ export function getTokenGetter(settings: ServiceAccount, service: keyof Aud): To
 }
 
 // Create firebase service account JWT to use in API calls
-export async function createToken(serviceAccount: ServiceAccount, service: keyof Aud, other?: object): Promise<string> {
+export async function createToken(serviceAccount: ServiceAccount, service: keyof Aud, claims?: object): Promise<string> {
   const iat = now();
   return await jwt.sign(
     {
@@ -31,7 +31,7 @@ export async function createToken(serviceAccount: ServiceAccount, service: keyof
       sub: serviceAccount.clientEmail,
       iat,
       exp: iat + exp,
-      ...other,
+      ...claims,
     },
     serviceAccount.privateKey,
     {
