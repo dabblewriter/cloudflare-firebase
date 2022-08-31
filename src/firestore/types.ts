@@ -109,8 +109,7 @@ export type UnionToIntersection<U> = (
   ? I
   : never;
 
-export class FieldValue {
-  private constructor();
+export type FieldValue = {
 
   /**
    * Returns a sentinel used with set(), create() or update() to include a
@@ -119,7 +118,7 @@ export class FieldValue {
    * @return The FieldValue sentinel for use in a call to set(), create() or
    * update().
    */
-  static serverTimestamp(): FieldValue;
+  serverTimestamp(): FieldValue;
 
   /**
    * Returns a sentinel for use with update() or set() with {merge:true} to
@@ -127,7 +126,7 @@ export class FieldValue {
    *
    * @return The FieldValue sentinel for use in a call to set() or update().
    */
-  static delete(): FieldValue;
+  delete(): FieldValue;
 
   /**
    * Returns a special value that can be used with set(), create() or update()
@@ -146,7 +145,7 @@ export class FieldValue {
    * @return The FieldValue sentinel for use in a call to set(), create() or
    * update().
    */
-  static increment(n: number): FieldValue;
+  increment(n: number): FieldValue;
 
   /**
    * Returns a special value that can be used with set(), create() or update()
@@ -160,7 +159,7 @@ export class FieldValue {
    * @return The FieldValue sentinel for use in a call to set(), create() or
    * update().
    */
-  static arrayUnion(...elements: any[]): FieldValue;
+  arrayUnion(...elements: any[]): FieldValue;
 
   /**
    * Returns a special value that can be used with set(), create() or update()
@@ -173,15 +172,7 @@ export class FieldValue {
    * @return The FieldValue sentinel for use in a call to set(), create() or
    * update().
    */
-  static arrayRemove(...elements: any[]): FieldValue;
-
-  /**
-   * Returns true if this `FieldValue` is equal to the provided one.
-   *
-   * @param other The `FieldValue` to compare against.
-   * @return true if this `FieldValue` is equal to the provided one.
-   */
-  isEqual(other: FieldValue): boolean;
+  arrayRemove(...elements: any[]): FieldValue;
 }
 
 export type SetOptions = { readonly merge?: boolean };
@@ -217,11 +208,11 @@ export interface ConsistencyOptions {
 }
 
 export namespace api {
-  interface FieldsMapValue {
+  export interface FieldsMapValue {
     fields: MapValue;
   }
 
-  interface Value {
+  export interface Value {
     nullValue?: null;
     booleanValue?: boolean;
     integerValue?: string;
@@ -235,20 +226,20 @@ export namespace api {
     mapValue?: FieldsMapValue;
   }
 
-  interface ArrayValue {
+  export interface ArrayValue {
     values: Value[];
   }
 
-  interface MapValue {
+  export interface MapValue {
     [key: string]: Value;
   }
 
-  interface LatLng {
+  export interface LatLng {
     latitude: number;
     longitude: number;
   }
 
-  interface BatchGetRequest {
+  export interface BatchGetRequest {
     documents: string[];
     mask?: DocumentMask;
     // Union field consistency_selector can be only one of the following:
@@ -258,42 +249,42 @@ export namespace api {
     // End of list of possible types for union field consistency_selector.
   }
 
-  interface BatchGetResponse {
+  export interface BatchGetResponse {
     transaction?: string,
     readTime: string,
     found?: Document;
     missing?: string;
   }
 
-  interface BatchWriteRequest {
+  export interface BatchWriteRequest {
     writes: Write[];
     labels?: {[key: string]: string};
   }
 
-  interface BatchWriteResponse {
+  export interface BatchWriteResponse {
     writeResults: WriteResult[];
     status: Status[];
   }
 
-  interface BeginTransactionRequest {
+  export interface BeginTransactionRequest {
     options: TransactionOptions;
   }
 
-  interface BeginTransactionResponse {
+  export interface BeginTransactionResponse {
     transaction: string;
   }
 
-  interface CommitRequest {
+  export interface CommitRequest {
     writes: Write[];
     transaction: string;
   }
 
-  interface CommitResponse {
+  export interface CommitResponse {
     writeResults: WriteResult[];
     commitTime: string;
   }
 
-  interface Write {
+  export interface Write {
     updateMask?: DocumentMask;
     updateTransforms?: FieldTransform[];
     currentDocument?: Precondition;
@@ -305,7 +296,7 @@ export namespace api {
     // End of list of possible types for union field operation.
   }
 
-  interface FieldTransform {
+  export interface FieldTransform {
     fieldPath: string;
     // Union field transform_type can be only one of the following:
     setToServerValue?: ServerValue;
@@ -317,43 +308,43 @@ export namespace api {
     // End of list of possible types for union field transform_type.
   }
 
-  interface FieldReference {
+  export interface FieldReference {
     fieldPath?: string;
   }
 
-  interface Filter {
+  export interface Filter {
     compositeFilter?: CompositeFilter;
     fieldFilter?: FieldFilter;
     unaryFilter?: UnaryFilter;
   }
 
-  interface CompositeFilter {
+  export interface CompositeFilter {
     op?: CompositeFilterOperator;
     filters?: Filter[];
   }
 
-  interface FieldFilter {
+  export interface FieldFilter {
     field?: FieldReference;
     op?: FieldFilterOperator;
     value?: Value;
   }
 
-  interface UnaryFilter {
+  export interface UnaryFilter {
     op?: UnaryFilterOperator;
     field?: FieldReference;
   }
 
-  interface CollectionSelector {
+  export interface CollectionSelector {
     collectionId: string,
     allDescendants?: boolean
   }
 
-  interface Cursor {
+  export interface Cursor {
     values: Value[];
     before?: boolean;
   }
 
-  interface StructuredQuery {
+  export interface StructuredQuery {
     select?: StructuredQueryProjection;
     from?: [CollectionSelector],
     where?: Filter;
@@ -364,84 +355,84 @@ export namespace api {
     limit?: number;
   }
 
-  interface StructuredQueryOrder {
+  export interface StructuredQueryOrder {
     field?: FieldReference;
     direction?: StructuredQueryDirection;
   }
 
-  interface StructuredQueryProjection {
+  export interface StructuredQueryProjection {
     fields?: FieldReference[];
   }
 
-  interface StructuredQueryOrder {
+  export interface StructuredQueryOrder {
     field?: FieldReference;
     direction?: StructuredQueryDirection;
   }
 
-  type CompositeFilterOperator = 'OPERATOR_UNSPECIFIED'| 'AND';
-  type FieldFilterOperator = 'OPERATOR_UNSPECIFIED'| 'LESS_THAN'| 'LESS_THAN_OR_EQUAL'| 'GREATER_THAN'| 'GREATER_THAN_OR_EQUAL'| 'EQUAL'| 'NOT_EQUAL'| 'ARRAY_CONTAINS'| 'IN'| 'ARRAY_CONTAINS_ANY'| 'NOT_IN';
-  type UnaryFilterOperator = 'OPERATOR_UNSPECIFIED'| 'IS_NAN'| 'IS_NULL'| 'IS_NOT_NAN'| 'IS_NOT_NULL';
-  type StructuredQueryDirection = 'DIRECTION_UNSPECIFIED'| 'ASCENDING'| 'DESCENDING';
+  export type CompositeFilterOperator = 'OPERATOR_UNSPECIFIED'| 'AND';
+  export type FieldFilterOperator = 'OPERATOR_UNSPECIFIED'| 'LESS_THAN'| 'LESS_THAN_OR_EQUAL'| 'GREATER_THAN'| 'GREATER_THAN_OR_EQUAL'| 'EQUAL'| 'NOT_EQUAL'| 'ARRAY_CONTAINS'| 'IN'| 'ARRAY_CONTAINS_ANY'| 'NOT_IN';
+  export type UnaryFilterOperator = 'OPERATOR_UNSPECIFIED'| 'IS_NAN'| 'IS_NULL'| 'IS_NOT_NAN'| 'IS_NOT_NULL';
+  export type StructuredQueryDirection = 'DIRECTION_UNSPECIFIED'| 'ASCENDING'| 'DESCENDING';
 
-  enum ServerValue {
+  export enum ServerValue {
     SERVER_VALUE_UNSPECIFIED = 'SERVER_VALUE_UNSPECIFIED',
     REQUEST_TIME = 'REQUEST_TIME',
   }
 
-  interface Document {
+  export interface Document {
     name: string,
     fields: MapValue,
     createTime?: string,
     updateTime?: string
   }
 
-  interface DocumentMask {
+  export interface DocumentMask {
     fieldPaths: string[];
   }
 
-  interface TransactionOptions {
+  export interface TransactionOptions {
     // Union field mode can be only one of the following:
     readOnly?: ReadOnly;
     readWrite?: ReadWrite;
     // End of list of possible types for union field mode.
   }
 
-  interface ReadOnly {
+  export interface ReadOnly {
     readTime: string;
   }
 
-  interface ReadWrite {
+  export interface ReadWrite {
     retryTransaction: string;
   }
 
-  interface Precondition {
+  export interface Precondition {
     // Union field condition_type can be only one of the following:
     exists?: boolean;
     updateTime?: string;
     // End of list of possible types for union field condition_type.
   }
 
-  interface DocumentTransform {
+  export interface DocumentTransform {
     document: string;
     fieldTransforms: FieldTransform[];
   }
 
-  interface WriteResult {
+  export interface WriteResult {
     updateTime?: string;
     transformResults?: Value[];
   }
 
-  interface ListCollectionIdsResponse {
+  export interface ListCollectionIdsResponse {
     collectionIds: string[];
     nextPageToken?: string;
   }
 
-  interface ListDocumentsResponse {
+  export interface ListDocumentsResponse {
     documents: Document[];
     nextPageToken?: string;
   }
 
-  interface RunQueryResponse {
+  export interface RunQueryResponse {
     error?: { code: number; message: string; status: string; };
     transaction?: string;
     document?: Document;
@@ -450,7 +441,7 @@ export namespace api {
     done?: boolean;
   }
 
-  interface Status {
+  export interface Status {
     code: number;
     message: string;
     details:{
