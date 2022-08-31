@@ -39,6 +39,12 @@ export interface SignInResponse {
   tokens: Tokens;
 }
 
+export interface RequestCode {
+  requestType: string;
+  email?: string;
+  idToken?: string;
+}
+
 export interface User {
   uid: string;
   name: string;

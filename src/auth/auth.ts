@@ -1,5 +1,5 @@
 import type { Settings } from '../types';
-import type { SignInFirebaseResponse, SignInResponse, TokenResponse, Tokens, User } from './types';
+import type { RequestCode, SignInFirebaseResponse, SignInResponse, TokenResponse, Tokens, User } from './types';
 import { FirebaseService } from '../service';
 import jwt from '@tsndr/cloudflare-worker-jwt';
 
@@ -30,7 +30,6 @@ export class Auth extends FirebaseService {
     return payload;
   }
 
-
   async signInWithEmailAndPassword(email: string, password: string): Promise<SignInResponse> {
     email = email && email.toLowerCase();
     const data = { email, password, returnSecureToken };
@@ -48,6 +47,18 @@ export class Auth extends FirebaseService {
       refreshToken: result.refresh_token,
     };
     return tokens;
+  }
+
+  async signUp(email:string , password: string) {
+    const data = { email, password, returnSecureToken };
+    const result: any = await this.request('POST', ':signUp', data);
+    const tokens = convertSignInResponse(result);
+    const user = await this._getUserData(tokens.idToken);
+    return { user, tokens };
+  }
+
+  async requestCode(data: RequestCode) {
+    return await this.request('POST', ':sendOobCode', data);
   }
 
   private async _getUserData(idToken: string) {
