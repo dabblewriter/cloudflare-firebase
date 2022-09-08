@@ -20,6 +20,10 @@ export class DocumentSnapshot<T = DocumentData> {
     return this._readTime && new Date(this._readTime);
   }
 
+  get exists() {
+    return !!this._doc.fields;
+  }
+
   data() {
     return this._doc.fields && decode(this.ref.firestore, this._doc.fields) || null;
   }
