@@ -1,35 +1,36 @@
-import type { api, PartialWithFieldValue, SetOptions, UpdateData, WithFieldValue } from './types';
+import type { api, DocumentData, PartialWithFieldValue, SetOptions, UpdateData, WithFieldValue } from './types';
 import { UpdateCollector } from './field-value';
 import { Firestore } from './firestore';
 import { DocumentReference } from './reference';
 import { encode } from './serializer';
+import { updateSymbol, writesSymbol } from './symbols';
 
 
 export class WriteBatch {
-  private _writes: api.Write[] = [];
+  private [writesSymbol]: api.Write[] = [];
 
   constructor(readonly firestore: Firestore) {}
 
   get length() {
-    return this._writes.length;
+    return this[writesSymbol].length;
   }
 
-  create<T>(ref: DocumentReference<T>, data: WithFieldValue<T>): this {
-    return this._update(ref, data, UpdateType.create);
+  create<T = DocumentData>(ref: DocumentReference<T>, data: WithFieldValue<T>): this {
+    return this[updateSymbol](ref, data, UpdateType.create);
   }
 
-  set<T>(ref: DocumentReference<T>, data: PartialWithFieldValue<T>, options: SetOptions): this;
-  set<T>(ref: DocumentReference<T>, data: WithFieldValue<T>): this;
-  set<T>(ref: DocumentReference<T>, data: PartialWithFieldValue<T>, options?: SetOptions): this {
-    return this._update(ref, data, options?.merge ? UpdateType.update : UpdateType.set);
+  set<T = DocumentData>(ref: DocumentReference<T>, data: PartialWithFieldValue<T>, options: SetOptions): this;
+  set<T = DocumentData>(ref: DocumentReference<T>, data: WithFieldValue<T>): this;
+  set<T = DocumentData>(ref: DocumentReference<T>, data: PartialWithFieldValue<T>, options?: SetOptions): this {
+    return this[updateSymbol](ref, data, options?.merge ? UpdateType.update : UpdateType.set);
   }
 
-  update<T>(ref: DocumentReference<T>, data: UpdateData<T>): this {
-    return this._update(ref, data, UpdateType.update);
+  update<T = DocumentData>(ref: DocumentReference<T>, data: UpdateData<T>): this {
+    return this[updateSymbol](ref, data, UpdateType.update);
   }
 
-  delete(ref: DocumentReference, precondition?: api.Precondition): this {
-    this._writes.push({
+  delete<T = DocumentData>(ref: DocumentReference<T>, precondition?: api.Precondition): this {
+    this[writesSymbol].push({
       delete: ref.qualifiedPath,
       currentDocument: precondition
     });
@@ -37,18 +38,22 @@ export class WriteBatch {
   }
 
   async commit(): Promise<Date[]> {
-    Object.freeze(this._writes);
-    const response = await this.firestore.request<api.BatchWriteResponse>('POST', ':batchWrite', { writes: this._writes });
+    Object.freeze(this[writesSymbol]);
+    if (this.firestore[writesSymbol]) { // transaction
+      this.firestore[writesSymbol].push(...this[writesSymbol]);
+      return;
+    }
+    const response = await this.firestore.request<api.BatchWriteResponse>('POST', ':batchWrite', { writes: this[writesSymbol] });
     return response.writeResults.map(result => result.updateTime && new Date(result.updateTime) || undefined);
   }
 
-  _update<T>(ref: DocumentReference, data: any, type: UpdateType): this {
+  [updateSymbol]<T = DocumentData>(ref: DocumentReference<T>, data: any, type: UpdateType): this {
     const collector = new UpdateCollector();
     const fields = encode(data, collector);
 
     if (!collector.mask.fieldPaths.length && type === UpdateType.update) {
       if (collector.transforms.length) {
-        this._writes.push({
+        this[writesSymbol].push({
           transform: { document: ref.qualifiedPath, fieldTransforms: collector.transforms },
         });
       } else {
@@ -61,7 +66,7 @@ export class WriteBatch {
         updateTransforms: collector.transforms.length ? collector.transforms : undefined,
         currentDocument: type === UpdateType.create ? { exists: true } : undefined,
       };
-      this._writes.push(write);
+      this[writesSymbol].push(write);
     }
     return this;
   }

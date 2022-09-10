@@ -1,35 +1,38 @@
 import { DocumentReference } from './reference';
 import { decode, decodeValue } from './serializer';
+import { docSymbol, readTimeSymbol } from './symbols';
 import { api, DocumentData } from './types';
 
 
 export class DocumentSnapshot<T = DocumentData> {
 
-  constructor(readonly ref: DocumentReference<T>, private _doc: api.Document = { name: ref.qualifiedPath, fields: null }, private _readTime?: string) {
+  constructor(readonly ref: DocumentReference<T>, doc: api.Document = { name: ref.qualifiedPath, fields: null }, readTime?: string) {
+    this[docSymbol] = doc;
+    this[readTimeSymbol] = readTime;
   }
 
   get createTime(): Date {
-    return this._doc.createTime && new Date(this._doc.createTime);
+    return this[docSymbol].createTime && new Date(this[docSymbol].createTime);
   }
 
   get updateTime(): Date {
-    return this._doc.updateTime && new Date(this._doc.updateTime);
+    return this[docSymbol].updateTime && new Date(this[docSymbol].updateTime);
   }
 
   get readTime(): Date {
-    return this._readTime && new Date(this._readTime);
+    return this[readTimeSymbol] && new Date(this[readTimeSymbol]);
   }
 
   get exists() {
-    return !!this._doc.fields;
+    return !!this[docSymbol].fields;
   }
 
   data() {
-    return this._doc.fields && decode(this.ref.firestore, this._doc.fields) || null;
+    return this[docSymbol].fields && decode(this.ref.firestore, this[docSymbol].fields) || null;
   }
 
   get(field: string): any {
-    let fields: api.MapValue | api.Value | undefined = this._doc.fields;
+    let fields: api.MapValue | api.Value | undefined = this[docSymbol].fields;
     const components = field.split('.');
     while (fields && components.length > 1) {
       fields = (fields as api.MapValue)[components.shift()]?.mapValue.fields;

@@ -5,6 +5,7 @@ import type {
 import { DocumentSnapshot } from './document';
 import { Firestore } from './firestore';
 import { decodePath, encodeValue } from './serializer';
+import { createCursorSymbol, querySymbol, transactionSymbol } from './symbols';
 
 
  const directionOperators: {[k: string]: api.StructuredQueryDirection} = {
@@ -144,8 +145,10 @@ export interface QueryOptions extends api.StructuredQuery {
 
 
 export class Query<T = DocumentData> {
+  protected [querySymbol]: QueryOptions = undefined;
 
-  constructor(readonly ref: CollectionReference, protected _query: QueryOptions) {
+  constructor(readonly ref: CollectionReference<T>, query: QueryOptions) {
+    this[querySymbol] = query;
   }
 
   where(fieldPath: string, opStr: WhereFilterOp, value: unknown): Query<T> {
@@ -156,60 +159,55 @@ export class Query<T = DocumentData> {
     } else {
       filter = { fieldFilter: { field: { fieldPath }, op: comparisonOperators[opStr], value } };
     }
-    // if (this._query.where) {
-    //   const filters = (this._query.where.compositeFilter?.filters || []).concat(filter);
-    //   filter = { compositeFilter: { op: 'AND', filters } };
-    // }
-
-    return new Query<T>(this.ref, { ...this._query, filters: [ ...this._query.filters, filter ] });
+    return new Query<T>(this.ref, { ...this[querySymbol], filters: [ ...this[querySymbol].filters, filter ] });
   }
 
-  select(...fieldPaths: string[]): Query<DocumentData> {
+  select(...fieldPaths: string[]): Query<T> {
     if (!fieldPaths.length) fieldPaths.push(FieldPath.documentId);
     return new Query(this.ref, {
-      ...this._query,
+      ...this[querySymbol],
       select: { fields: fieldPaths.map(fieldPath => ({ fieldPath })) },
     });
   }
 
   orderBy(fieldPath: string, directionStr?: OrderByDirection): Query<T> {
     return new Query(this.ref, {
-      ...this._query,
-      orderBy: [ ...this._query.orderBy, { field: { fieldPath }, direction: directionOperators[directionStr] } ],
+      ...this[querySymbol],
+      orderBy: [ ...this[querySymbol].orderBy, { field: { fieldPath }, direction: directionOperators[directionStr] } ],
     });
   }
 
   limit(limit: number): Query<T> {
-    const { reverse, ...q } = this._query;
+    const { reverse, ...q } = this[querySymbol];
     return new Query(this.ref, { ...q, limit });
   }
 
   limitToLast(limit: number): Query<T> {
-    return new Query(this.ref, { ...this._query, limit, reverse: true });
+    return new Query(this.ref, { ...this[querySymbol], limit, reverse: true });
   }
 
   offset(offset: number): Query<T> {
-    return new Query(this.ref, { ...this._query, offset });
+    return new Query(this.ref, { ...this[querySymbol], offset });
   }
 
   startAt(...fieldValuesOrDocumentSnapshot: Array<DocumentSnapshot<unknown> | unknown>): Query<T> {
-    return new Query(this.ref, { ...this._query, startAt: this._createCursor(fieldValuesOrDocumentSnapshot, true) });
+    return new Query(this.ref, { ...this[querySymbol], startAt: this[createCursorSymbol](fieldValuesOrDocumentSnapshot, true) });
   }
 
   startAfter(...fieldValuesOrDocumentSnapshot: Array<DocumentSnapshot<unknown> | unknown>): Query<T> {
-    return new Query(this.ref, { ...this._query, startAt: this._createCursor(fieldValuesOrDocumentSnapshot, false) });
+    return new Query(this.ref, { ...this[querySymbol], startAt: this[createCursorSymbol](fieldValuesOrDocumentSnapshot, false) });
   }
 
   endAt(...fieldValuesOrDocumentSnapshot: Array<DocumentSnapshot<unknown> | unknown>): Query<T> {
-    return new Query(this.ref, { ...this._query, endAt: this._createCursor(fieldValuesOrDocumentSnapshot, true) });
+    return new Query(this.ref, { ...this[querySymbol], endAt: this[createCursorSymbol](fieldValuesOrDocumentSnapshot, true) });
   }
 
   endAfter(...fieldValuesOrDocumentSnapshot: Array<DocumentSnapshot<unknown> | unknown>): Query<T> {
-    return new Query(this.ref, { ...this._query, endAt: this._createCursor(fieldValuesOrDocumentSnapshot, false) });
+    return new Query(this.ref, { ...this[querySymbol], endAt: this[createCursorSymbol](fieldValuesOrDocumentSnapshot, false) });
   }
 
-  private _createCursor(cursorValuesOrDocumentSnapshot: Array<DocumentSnapshot | unknown>, before: boolean): api.Cursor {
-    const fieldOrders = getFieldOrders(this._query);
+  private [createCursorSymbol](cursorValuesOrDocumentSnapshot: Array<DocumentSnapshot | unknown>, before: boolean): api.Cursor {
+    const fieldOrders = getFieldOrders(this[querySymbol]);
     let fieldValues: unknown[];
 
     if (cursorValuesOrDocumentSnapshot.length === 1 && cursorValuesOrDocumentSnapshot[0] instanceof DocumentSnapshot) {
@@ -243,12 +241,8 @@ export class Query<T = DocumentData> {
     return cursor;
   }
 
-  get(): Promise<QuerySnapshot<T>> {
-    return this._get();
-  }
-
-  async _get(transaction?: string): Promise<QuerySnapshot<T>> {
-    const { reverse, filters, ...query } = this._query;
+  async get(): Promise<QuerySnapshot<T>> {
+    const { reverse, filters, ...query } = this[querySymbol];
     if (filters.length > 1) {
       query.where = { compositeFilter: { op: 'AND', filters } };
     } else if (filters.length) {
@@ -266,14 +260,16 @@ export class Query<T = DocumentData> {
       query.endAt = query.startAt ? { values: query.startAt.values, before: !query.startAt.before } : undefined;
     }
     const response: api.RunQueryResponse[] = await this.ref.firestore.request('POST', `${this.ref.parent.path}:runQuery`, {
-      structuredQuery: query, transaction,
+      structuredQuery: query, transaction: this.ref.firestore[transactionSymbol],
     });
 
     if (response[0]?.error) throw new Error(response[0].error.message);
     if (response[0]?.skippedResults) response.shift();
     if (reverse) response.reverse();
-    const docs = response.filter(e => e.document).map(e => new DocumentSnapshot(this.ref.doc(decodePath(e.document.name)), e.document, e.readTime));
-    return new QuerySnapshot(this, docs[0].readTime, response.length, docs);
+    const docs = response.filter(e => e.document).map(e =>
+      new DocumentSnapshot<T>(this.ref.doc(decodePath(e.document.name)), e.document, e.readTime)
+    );
+    return new QuerySnapshot<T>(this, docs[0].readTime, response.length, docs);
   }
 }
 

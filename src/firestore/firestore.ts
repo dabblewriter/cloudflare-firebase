@@ -4,11 +4,15 @@ import { CollectionReference, DocumentReference } from './reference';
 import { DocumentSnapshot } from './document';
 import { WriteBatch } from './write-batch';
 import { FirebaseService } from '../service';
+import { transactionSymbol, writesSymbol } from './symbols';
+import { createId } from 'crypto-id';
 
 
 export class Firestore extends FirebaseService {
   basePath: string;
   getToken: () => Promise<string>;
+  [transactionSymbol]: string = undefined;
+  [writesSymbol]: api.Write[] = undefined;
 
   constructor(settings: Settings, apiKey: string) {
     super('firestore', 'https://firestore.googleapis.com/v1', settings, apiKey);
@@ -21,6 +25,16 @@ export class Firestore extends FirebaseService {
 
   doc(path: string): DocumentReference {
     return new DocumentReference(this, path);
+  }
+
+  async runTransaction<T>(updateFunction: () => Promise<T>, options?: api.TransactionOptions): Promise<T> {
+    this[transactionSymbol] = (await this.request('POST', ':beginTransaction', { options }) as {transaction: string}).transaction;
+    this[writesSymbol] = [];
+    const result = await updateFunction();
+    (await this.request('POST', ':commit', { writes: this[writesSymbol], transaction: this[transactionSymbol] }));
+    this[transactionSymbol] = undefined;
+    this[writesSymbol] = undefined;
+    return result;
   }
 
   batch(): WriteBatch {
@@ -36,28 +50,12 @@ export class Firestore extends FirebaseService {
   }
 
   autoId(): string {
-    const chars =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let autoId = '';
-    while (autoId.length < 20) {
-      const bytes = crypto.getRandomValues(new Uint8Array(40));
-      bytes.some(b => {
-        // Length of `chars` is 62. We only take bytes between 0 and 62*4-1
-        // (both inclusive). The value is then evenly mapped to indices of `char`
-        // via a modulo operation.
-        const maxValue = 62 * 4 - 1;
-        if (b <= maxValue) {
-          autoId += chars.charAt(b % 62);
-        }
-        if (autoId.length >= 20) return true;
-      });
-    }
-    return autoId;
+    return createId(20);
   }
 
   async batchGet(refs: DocumentReference[], fields?: string[], consistency?: ConsistencyOptions): Promise<DocumentSnapshot[]> {
     const mask = fields && { fieldPaths: fields };
-    const request: api.BatchGetRequest = { documents: refs.map(ref => ref.qualifiedPath), mask, ...consistency };
+    const request: api.BatchGetRequest = { documents: refs.map(ref => ref.qualifiedPath), mask, ...consistency, transaction: this[transactionSymbol] };
     const response: api.BatchGetResponse[] = await this.request('POST', ':batchGet',  request);
     const docMap = new Map<string, api.BatchGetResponse>();
     // return in the same order as requested
