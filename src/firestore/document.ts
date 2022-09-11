@@ -24,11 +24,11 @@ export class DocumentSnapshot<T = DocumentData> {
   }
 
   get exists() {
-    return !!this[docSymbol].fields;
+    return !!this[docSymbol]?.fields;
   }
 
   data() {
-    return this[docSymbol].fields && decode(this.ref.firestore, this[docSymbol].fields) || null;
+    return this[docSymbol]?.fields && decode(this.ref.firestore, this[docSymbol].fields) || null;
   }
 
   get(field: string): any {
