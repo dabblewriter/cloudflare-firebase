@@ -1,5 +1,6 @@
 import type { HTTPMethod, ServiceAccount, Settings, UserAccount } from './types';
 import { Aud, getTokenGetter } from './tokens';
+import { StatusError } from './status-error';
 
 export class FirebaseService {
   getToken: () => Promise<string>;
@@ -40,6 +41,10 @@ export class FirebaseService {
         'Content-Type': 'application/json',
       },
     });
-    return await response.json() as T;
+    const data = await response.json() as any;
+    if (data.error) {
+      throw new StatusError(data.error.code, data.error.message);
+    }
+    return data;
   }
 }
