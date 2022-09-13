@@ -37,7 +37,7 @@ export function encodeValue(value: any, collector?: UpdateCollector) {
 export function decode<T = DocumentData>(firestore: Firestore, fields: api.MapValue): T {
   const obj: DocumentData = {};
   if (!fields) return obj as T;
-  for (const prop of Object.keys(fields)) {
+  for (const prop of Object.keys(fields).sort()) {
     obj[prop] = decodeValue(firestore, fields[prop]);
   }
   return obj as T;
