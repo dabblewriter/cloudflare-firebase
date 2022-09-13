@@ -8,7 +8,7 @@ export function encode(map: DocumentData, collector?: UpdateCollector): api.MapV
   const fields: api.MapValue = {};
   Object.entries(map).forEach(([ key, value ]) => {
     collector?.enterField(key);
-    fields[key] = encodeValue(value, collector);
+    if (value !== undefined) fields[key] = encodeValue(value, collector);
     collector?.leaveField();
   });
   return fields;
