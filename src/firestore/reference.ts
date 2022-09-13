@@ -153,11 +153,16 @@ export class Query<T = DocumentData> {
 
   where(fieldPath: string, opStr: WhereFilterOp, value: unknown): Query<T> {
     let filter: api.Filter;
+    if (value === undefined) throw new Error('Where value cannot be undefined');
+    if (fieldPath === FieldPath.documentId) {
+      if (typeof value === 'string') value = this.ref.doc(value);
+      else if (Array.isArray(value) && typeof value[0] === 'string') value = value.map(value => this.ref.doc(value));
+    }
     if ((opStr === '==' || opStr === '!=') && (value === null || typeof value === 'number' && isNaN(value))) {
       const op = unaryOperators[opStr][value] as api.UnaryFilterOperator;
       filter = { unaryFilter: { field: { fieldPath }, op } };
     } else {
-      filter = { fieldFilter: { field: { fieldPath }, op: comparisonOperators[opStr], value } };
+      filter = { fieldFilter: { field: { fieldPath }, op: comparisonOperators[opStr], value: encodeValue(value) } };
     }
     return new Query<T>(this.ref, { ...this[querySymbol], filters: [ ...this[querySymbol].filters, filter ] });
   }
@@ -263,13 +268,14 @@ export class Query<T = DocumentData> {
       structuredQuery: query, transaction: this.ref.firestore[transactionSymbol],
     });
 
+    const readTime = new Date(response[0].readTime);
     if (response[0]?.error) throw new Error(response[0].error.message);
     if (response[0]?.skippedResults) response.shift();
     if (reverse) response.reverse();
     const docs = response.filter(e => e.document).map(e =>
-      new DocumentSnapshot<T>(this.ref.doc(decodePath(e.document.name)), e.document, e.readTime)
+      new DocumentSnapshot<T>(this.ref.doc(decodePath(e.document.name).replace(this.ref.path, '')), e.document, e.readTime)
     );
-    return new QuerySnapshot<T>(this, docs[0].readTime, response.length, docs);
+    return new QuerySnapshot<T>(this, readTime, response.length, docs);
   }
 }
 
