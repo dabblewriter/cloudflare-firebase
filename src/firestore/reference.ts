@@ -64,7 +64,7 @@ export class DocumentReference<T = DocumentData> {
 
   constructor(readonly firestore: Firestore, path: string | string[], readonly transactionOptions?: ReadTransactionOptions) {
     const segments = typeof path === 'string' ? trim(path).split('/') : path;
-    if (segments.length % 2 !== 0) throw new Error('A document reference must have an even number of segments');
+    if (segments.length % 2 !== 0) throw new Error('A document reference must have an even number of segments, received ' + segments.join('/'));
     this.segments = segments;
   }
 
@@ -285,7 +285,7 @@ export class CollectionReference<T = DocumentData> extends Query {
 
   constructor(readonly firestore: Firestore, path: string | string[], readonly transactionOptions?: ReadTransactionOptions) {
     const segments = typeof path === 'string' ? trim(path).split('/') : path;
-    if (segments.length % 2 !== 1) throw new Error('A collection reference must have an odd number of segments');
+    if (segments.length % 2 !== 1) throw new Error('A collection reference must have an odd number of segments, received ' + segments.join('/'));
     super(null, { from: [{ collectionId: segments[segments.length - 1] }], filters: [], orderBy: [] });
     (this.ref as any) = this;
     this.segments = segments;
