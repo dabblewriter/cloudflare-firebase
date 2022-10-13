@@ -63,7 +63,7 @@ export class DocumentReference<T = DocumentData> {
   readonly segments: string[];
 
   constructor(readonly firestore: Firestore, path: string | string[], readonly transactionOptions?: ReadTransactionOptions) {
-    const segments = typeof path === 'string' ? trim(path).split('/') : path;
+    const segments = typeof path === 'string' ? trim(path).split('/').filter(Boolean) : path;
     if (segments.length % 2 !== 0) throw new Error('A document reference must have an even number of segments, received ' + segments.join('/'));
     this.segments = segments;
   }
