@@ -159,7 +159,7 @@ export class Query<T = DocumentData> {
       else if (Array.isArray(value) && typeof value[0] === 'string') value = value.map(value => this.ref.doc(value));
     }
     if ((opStr === '==' || opStr === '!=') && (value === null || typeof value === 'number' && isNaN(value))) {
-      const op = unaryOperators[opStr][value] as api.UnaryFilterOperator;
+      const op = unaryOperators[opStr][value as any] as api.UnaryFilterOperator;
       filter = { unaryFilter: { field: { fieldPath }, op } };
     } else {
       filter = { fieldFilter: { field: { fieldPath }, op: comparisonOperators[opStr], value: encodeValue(value) } };
@@ -233,7 +233,7 @@ export class Query<T = DocumentData> {
     for (let i = 0; i < fieldValues.length; ++i) {
       let fieldValue = fieldValues[i];
 
-      if (fieldOrders[i].field === FieldPath.documentId && typeof fieldValue === 'string') {
+      if (fieldOrders[i].field === FieldPath.documentId as string && typeof fieldValue === 'string') {
         fieldValue = this.ref.doc(fieldValue);
       }
       if (typeof fieldValue === 'undefined') {
@@ -346,7 +346,7 @@ function getFieldOrders(query: QueryOptions) {
       }
     }
   }
-  if (!fieldOrders.some(o => o.field === FieldPath.documentId)) {
+  if (!fieldOrders.some(o => o.field === FieldPath.documentId as string)) {
     fieldOrders.push({ field: { fieldPath: FieldPath.documentId }});
   }
   return fieldOrders;
@@ -356,7 +356,7 @@ function extractFieldValues(documentSnapshot: DocumentSnapshot, fieldOrders: api
   const fieldValues: unknown[] = [];
 
   for (const fieldOrder of fieldOrders) {
-    if (fieldOrder.field === FieldPath.documentId) {
+    if (fieldOrder.field === FieldPath.documentId as string) {
       fieldValues.push(documentSnapshot.ref);
     } else {
       const fieldValue = documentSnapshot.get(fieldOrder.field.fieldPath);

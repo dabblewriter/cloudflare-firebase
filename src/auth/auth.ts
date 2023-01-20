@@ -39,6 +39,15 @@ export class Auth extends FirebaseService {
     return { user, tokens };
   }
 
+  // 0auth signing
+  async signInWithIdp(credentials: string, requestUri: string, returnIdpCredential = false): Promise<SignInResponse> {
+    const data = { postBody: credentials, requestUri, returnSecureToken, returnIdpCredential };
+    const result: SignInFirebaseResponse = await this.userRequest('POST', ':signInWithIdp', data);
+    const tokens = convertSignInResponse(result);
+    const user = await this.getUser(tokens.idToken);
+    return { user, tokens };
+  }
+
   async signInWithCustomToken(token: string): Promise<SignInResponse> {
     const data = { token, returnSecureToken };
     const result: SignInFirebaseResponse = await this.userRequest('POST', ':signInWithCustomToken', data);
