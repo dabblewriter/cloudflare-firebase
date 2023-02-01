@@ -58,3 +58,22 @@ export interface User {
   lastLoginAt: number;
   createdAt: number;
 }
+
+export type AccountQuerySort = 'SORT_BY_FIELD_UNSPECIFIED' | 'USER_ID' | 'NAME' | 'CREATED_AT' | 'LAST_LOGIN_AT' | 'USER_EMAIL';
+export type AccountQueryOrder = 'ORDER_UNSPECIFIED' | 'ASC' | 'DESC';
+export type AccountQueryExpression = { email: string} | { userId: string} | { phoneNumber: string};
+
+export interface AccountQuery {
+  returnUserInfo?: boolean; // default true, if false the count will be returned
+  limit?: string; // default 500
+  offset?: string;
+  sortBy?: AccountQuerySort; // default USER_ID
+  order?: AccountQueryOrder; // default ASC
+  tenantId?: string;
+  expression: [AccountQueryExpression];
+}
+
+export interface AccountQueryResult {
+  count: number;
+  users: User[];
+}
