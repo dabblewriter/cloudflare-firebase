@@ -10,7 +10,7 @@ export class Auth extends FirebaseService {
   getToken: (claims?: object) => Promise<string>;
 
   constructor(settings: Settings, apiKey: string) {
-    super('auth', 'https://identitytoolkit.googleapis.com/v1/', settings, apiKey);
+    super('auth', 'https://identitytoolkit.googleapis.com/v1', settings, apiKey);
   }
 
   async verify(token: string) {
