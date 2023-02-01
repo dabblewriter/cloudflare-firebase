@@ -23,12 +23,17 @@ export function getTokenGetter(settings: ServiceAccount, service: keyof Aud): To
 
 // Create firebase service account JWT to use in API calls
 export async function createToken(serviceAccount: ServiceAccount, service: keyof Aud, claims?: Record<string, any>): Promise<string> {
+  let sub = serviceAccount.clientEmail;
+  if (claims?.uid) {
+    sub = claims.uid;
+    delete claims.uid;
+  }
   const iat = now();
   return await jwt.sign(
     {
       aud: aud[service],
       iss: serviceAccount.clientEmail,
-      sub: claims.uid || serviceAccount.clientEmail,
+      sub,
       iat,
       exp: iat + exp,
       ...claims,
