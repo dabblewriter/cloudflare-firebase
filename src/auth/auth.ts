@@ -4,6 +4,7 @@ import { FirebaseService } from '../service';
 import jwt from '@tsndr/cloudflare-worker-jwt';
 
 const returnSecureToken = true; // used for adding boolean in requests
+const uidLength = 28;
 
 export class Auth extends FirebaseService {
   apiUrl: 'https://identitytoolkit.googleapis.com/v1/accounts';
@@ -74,35 +75,40 @@ export class Auth extends FirebaseService {
     return { user, tokens };
   }
 
-  async getUser(idToken: string) {
-    const response: any = await this.userRequest('POST', ':lookup', { idToken });
+  async getUser(idTokenOrUID: string) {
+    if (idTokenOrUID.length === uidLength) return (await this.signInWithCustomToken(await this.createCustomToken(idTokenOrUID))).user;
+    const response: any = await this.userRequest('POST', ':lookup', { idToken: idTokenOrUID });
     return convertUserData(response.users[0]);
   }
 
-  async updateUser(idToken: string, updates: any) {
-    if (!idToken || typeof idToken !== 'string' || !updates || typeof updates !== 'object' || Array.isArray(updates)) {
+  async updateUser(idTokenOrUID: string, updates: any) {
+    if (!idTokenOrUID || typeof idTokenOrUID !== 'string' || !updates || typeof updates !== 'object' || Array.isArray(updates)) {
       throw new Error('INVALID_DATA');
     }
+    if (idTokenOrUID.length === uidLength) idTokenOrUID = (await this.getUserToken(idTokenOrUID));
     const { name, email, photoUrl } = updates;
-    updates = { displayName: name, email, photoUrl, idToken, returnSecureToken: true };
+    updates = { displayName: name, email, photoUrl, idToken: idTokenOrUID, returnSecureToken: true };
     const result = await this.userRequest('POST', ':update', updates) as SignInFirebaseResponse;
     return convertSignInResponse(result);
   }
 
-  async updatePassword(idToken: string, password: string) {
-    if (!idToken || typeof idToken !== 'string' || !password || typeof password !== 'string') {
+  async updatePassword(idTokenOrUID: string, password: string) {
+    if (!idTokenOrUID || typeof idTokenOrUID !== 'string' || !password || typeof password !== 'string') {
       throw new Error('INVALID_DATA');
     }
-    const result = await this.userRequest('POST', ':update', { password, idToken, returnSecureToken }) as SignInFirebaseResponse;
+    if (idTokenOrUID.length === uidLength) idTokenOrUID = (await this.getUserToken(idTokenOrUID));
+    const result = await this.userRequest('POST', ':update', { password, idToken: idTokenOrUID, returnSecureToken }) as SignInFirebaseResponse;
     return convertSignInResponse(result);
   }
 
-  async deleteUser(idToken: string) {
-    await this.userRequest('POST', ':delete', { idToken });
+  async deleteUser(idTokenOrUID: string) {
+    if (idTokenOrUID.length === uidLength) idTokenOrUID = (await this.getUserToken(idTokenOrUID));
+    await this.userRequest('POST', ':delete', { idToken: idTokenOrUID });
   }
 
-  async sendVerification(idToken: string) {
-    const data = { requestType: 'VERIFY_EMAIL', idToken };
+  async sendVerification(idTokenOrUID: string) {
+    if (idTokenOrUID.length === uidLength) idTokenOrUID = (await this.getUserToken(idTokenOrUID));
+    const data = { requestType: 'VERIFY_EMAIL', idToken: idTokenOrUID };
     await this.userRequest('POST', ':sendOobCode', data);
   }
 
@@ -121,10 +127,12 @@ export class Auth extends FirebaseService {
     await this.userRequest('POST', ':resetPassword', data);
   }
 
-  async createCustomToken(idToken: string, uid: string) {
-    const user = await this.getUser(idToken);
-    if (!user.claims.admin) throw new Error('UNAUTHORIZED');
+  async createCustomToken(uid: string) {
     return await this.getToken({ uid });
+  }
+
+  async getUserToken(uid: string) {
+    return (await this.signInWithCustomToken(await this.createCustomToken(uid))).tokens.idToken;
   }
 }
 
