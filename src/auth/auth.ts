@@ -17,7 +17,7 @@ export class Auth extends FirebaseService {
     if (typeof token !== 'string') throw new Error('JWT token must be a string');
     const tokenParts = token.split('.');
     if (tokenParts.length !== 3) throw new Error('JWT token must consist of 3 parts');
-    const { header: { alg, kid }, payload } = jwt.decode(token) as {header: any, payload: any};
+    const { header: { alg, kid }, payload } = jwt.decode(token) as { header: any, payload: any };
     const importAlgorithm = (jwt as any).algorithms[alg];
     if (!importAlgorithm) throw new Error('JWT algorithm not found');
     if (payload.nbf && payload.nbf > Math.floor(Date.now() / 1000)) throw 'JWT token not yet valid';
@@ -66,11 +66,14 @@ export class Auth extends FirebaseService {
     return tokens;
   }
 
-  async signUp(email:string , password: string) {
+  async signUp(email: string, password: string, name?: string) {
     const data = { email, password, returnSecureToken };
     const result: any = await this.userRequest('POST', 'accounts:signUp', data);
+    await this.userRequest('POST', 'accounts:update', { displayName: name, idToken: result.idToken });
     const tokens = convertSignInResponse(result);
+
     const user = await this.getUser(tokens.idToken);
+    user.name = name;
     return { user, tokens };
   }
 
@@ -128,7 +131,7 @@ export class Auth extends FirebaseService {
 
   async queryAccounts(options: AccountQuery): Promise<AccountQueryResult> {
     const { recordsCount, userInfo } = await this.request('POST', `projects/${this.settings.projectId}:queryAccounts`, options) as { recordsCount: string, userInfo: any[] };
-    return { count: parseInt(recordsCount), users: userInfo?.map(convertUserData)}
+    return { count: parseInt(recordsCount), users: userInfo?.map(convertUserData) }
   }
 
   async createCustomToken(uid: string) {
@@ -161,8 +164,8 @@ function convertUserData(user: any): User {
   if (user.customAttributes) {
     try {
       claims = JSON.parse(user.customAttributes);
-    // tslint:disable-next-line:no-empty
-    } catch (err) {}
+      // tslint:disable-next-line:no-empty
+    } catch (err) { }
   }
 
   return {
