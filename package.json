@@ -1,6 +1,6 @@
 {
   "name": "workers-firebase",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "scripts": {
     "start": "tsc --watch",
     "build": "tsc",
