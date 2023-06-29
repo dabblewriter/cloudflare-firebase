@@ -130,7 +130,7 @@ export class Auth extends FirebaseService {
   }
 
   async queryAccounts(options: AccountQuery): Promise<AccountQueryResult> {
-    const { recordsCount, userInfo } = await this.request('POST', `projects/${this.settings.projectId}:accounts:query`, options) as { recordsCount: string, userInfo: any[] };
+    const { recordsCount, userInfo } = await this.request('POST', `projects/${this.settings.projectId}/accounts:query`, options) as { recordsCount: string, userInfo: any[] };
     return { count: parseInt(recordsCount), users: userInfo?.map(convertUserData) }
   }
 
