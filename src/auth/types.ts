@@ -1,4 +1,3 @@
-
 export interface TokenPayload {
   // Custom data
   user_id: string;
@@ -21,22 +20,24 @@ export interface TokenResponse {
 }
 
 export interface SignInFirebaseResponse {
-  idToken:	string; // A Firebase Auth ID token for the authenticated user.
-  email:	string; // The email for the authenticated user.
-  refreshToken:	string; // A Firebase Auth refresh token for the authenticated user.
-  expiresIn:	string; // The number of seconds in which the ID token expires.
-  localId:	string; // The uid of the authenticated user.
+  idToken: string; // A Firebase Auth ID token for the authenticated user.
+  email: string; // The email for the authenticated user.
+  refreshToken: string; // A Firebase Auth refresh token for the authenticated user.
+  expiresIn: string; // The number of seconds in which the ID token expires.
+  localId: string; // The uid of the authenticated user.
+  isNewUser?: boolean; // Is the firebase user new (used for google onetap)
 }
 
 export interface Tokens {
-  idToken:	string; // A Firebase Auth ID token for the authenticated user.
-  refreshToken:	string; // A Firebase Auth refresh token for the authenticated user.
+  idToken: string; // A Firebase Auth ID token for the authenticated user.
+  refreshToken: string; // A Firebase Auth refresh token for the authenticated user.
   customToken?: string; // Signin by token token.
 }
 
 export interface SignInResponse {
   user: User;
   tokens: Tokens;
+  isNewUser?: boolean;
 }
 
 export interface RequestCode {
@@ -59,9 +60,18 @@ export interface User {
   createdAt: number;
 }
 
-export type AccountQuerySort = 'SORT_BY_FIELD_UNSPECIFIED' | 'USER_ID' | 'NAME' | 'CREATED_AT' | 'LAST_LOGIN_AT' | 'USER_EMAIL';
+export type AccountQuerySort =
+  | 'SORT_BY_FIELD_UNSPECIFIED'
+  | 'USER_ID'
+  | 'NAME'
+  | 'CREATED_AT'
+  | 'LAST_LOGIN_AT'
+  | 'USER_EMAIL';
 export type AccountQueryOrder = 'ORDER_UNSPECIFIED' | 'ASC' | 'DESC';
-export type AccountQueryExpression = { email: string} | { userId: string} | { phoneNumber: string};
+export type AccountQueryExpression =
+  | { email: string }
+  | { userId: string }
+  | { phoneNumber: string };
 
 export interface AccountQuery {
   returnUserInfo?: boolean; // default true, if false the count will be returned

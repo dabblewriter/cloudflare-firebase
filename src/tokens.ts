@@ -13,8 +13,10 @@ export function getTokenGetter(settings: ServiceAccount, service: keyof Aud): To
   let tokenExp: number;
 
   return async function getToken(claims?: object) {
+    if (claims) return await createToken(settings, service, claims);
+
     if (!tokenExp || now() > tokenExp - 60) {
-      token = await createToken(settings, service, claims);
+      token = await createToken(settings, service);
       tokenExp = now() + exp;
     }
     return token;
