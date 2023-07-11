@@ -1,5 +1,8 @@
 # Change Log
 
+## 0.0.23 (2023.07.11)
+- fixed issue with authentication remembering new users instead of logging one in
+
 ## 0.0.22 (2023.06.29)
 - changed query to accounts:query
 - added readme with link to part of the docs for the api
