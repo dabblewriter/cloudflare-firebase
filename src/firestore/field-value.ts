@@ -46,10 +46,10 @@ export class UpdateCollector {
 
   enterField(field: string) {
     this.paths.push(field);
-    this.mask.fieldPaths.push(this.paths.join('.'));
   }
 
-  leaveField() {
+  leaveField(addMask: boolean) {
+    if (addMask) this.mask.fieldPaths.push(this.paths.join('.'));
     this.paths.pop();
   }
 

@@ -1,9 +1,9 @@
-import type { api, DocumentData, PartialWithFieldValue, SetOptions, UpdateData, WithFieldValue } from './types';
 import { UpdateCollector } from './field-value';
 import { Firestore } from './firestore';
 import { DocumentReference } from './reference';
 import { encode } from './serializer';
 import { updateSymbol, writesSymbol } from './symbols';
+import type { DocumentData, PartialWithFieldValue, SetOptions, UpdateData, WithFieldValue, api } from './types';
 
 
 export class WriteBatch {

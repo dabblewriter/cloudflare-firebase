@@ -1,7 +1,7 @@
-import type { api, DocumentData } from './types';
 import { FieldValue, UpdateCollector } from './field-value';
 import { Firestore } from './firestore';
 import { Reference } from './reference';
+import type { DocumentData, api } from './types';
 const RESOURCE_PATH_RE = /^projects\/([^/]+)\/databases\/([^/]+)(?:\/documents\/)?/;
 
 export function encode(map: DocumentData, collector?: UpdateCollector): api.MapValue {
@@ -9,7 +9,8 @@ export function encode(map: DocumentData, collector?: UpdateCollector): api.MapV
   Object.entries(map).forEach(([ key, value ]) => {
     collector?.enterField(key);
     if (value !== undefined) fields[key] = encodeValue(value, collector);
-    collector?.leaveField();
+    const shouldAddMask = !fields[key] || !(fields[key].arrayValue || fields[key].mapValue);
+    collector?.leaveField(shouldAddMask);
   });
   return fields;
 }
@@ -29,8 +30,8 @@ export function encodeValue(value: any, collector?: UpdateCollector) {
   if (value instanceof ArrayBuffer) return { bytesValue: btoa(new TextDecoder('utf8').decode(value)) };
   if (value && value.buffer instanceof ArrayBuffer) return { bytesValue: btoa(new TextDecoder('utf8').decode(value.buffer)) };
   if (typeof value === 'object' && 'latitude' in value && 'longitude' in value && Object.keys(value).length === 2) return { geoPointValue: value };
-  if (Array.isArray(value)) return { arrayValue: { values: value.map(v => encodeValue(v)) } };
-  if (typeof value === 'object') return { mapValue: { fields: encode(value) }};
+  if (Array.isArray(value)) return { arrayValue: { values: value.map(v => encodeValue(v, collector)) } };
+  if (typeof value === 'object') return { mapValue: { fields: encode(value, collector) }};
   throw new Error(`Unsupported value type: ${typeof value}`);
 }
 

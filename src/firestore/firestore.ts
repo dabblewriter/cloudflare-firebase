@@ -1,16 +1,15 @@
-import type { Settings, HTTPMethod } from '../types';
-import type { api, ConsistencyOptions } from './types';
-import { CollectionReference, DocumentReference } from './reference';
-import { DocumentSnapshot } from './document';
-import { WriteBatch } from './write-batch';
-import { FirebaseService } from '../service';
-import { transactionSymbol, writesSymbol } from './symbols';
 import { createId } from 'crypto-id';
+import { FirebaseService } from '../service';
+import type { HTTPMethod, Settings } from '../types';
+import { DocumentSnapshot } from './document';
+import { CollectionReference, DocumentReference } from './reference';
+import { transactionSymbol, writesSymbol } from './symbols';
+import type { ConsistencyOptions, api } from './types';
+import { WriteBatch } from './write-batch';
 
 
 export class Firestore extends FirebaseService {
   basePath: string;
-  getToken: () => Promise<string>;
   [transactionSymbol]: string = undefined;
   [writesSymbol]: api.Write[] = undefined;
 
