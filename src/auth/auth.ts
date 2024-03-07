@@ -158,6 +158,16 @@ export class Auth extends FirebaseService {
     return convertUserData(response.users[0]);
   }
 
+  async getUsers(uids: string[]) {
+    const response: any = await this.request('POST', 'accounts:lookup', {
+      localId: uids,
+    }, 'https://www.googleapis.com/auth/identitytoolkit');
+    // may not be returned in the same order, we will sort it
+    const map = new Map<string, User>();
+    response.users.forEach((data: any) => map.set(data.localId, convertUserData(data)));
+    return uids.map((uid) => map.get(uid));
+  }
+
   async updateUser(idTokenOrUID: string, updates: any) {
     if (
       !idTokenOrUID ||
