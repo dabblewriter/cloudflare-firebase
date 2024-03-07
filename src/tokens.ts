@@ -1,5 +1,5 @@
 import jwt from '@tsndr/cloudflare-worker-jwt';
-import type { OauthTokenGetter, ServiceAccount, TokenGetter } from './types';
+import type { ServiceAccount, TokenGetter } from './types';
 
 const exp = 3600;
 const aud = {
@@ -29,7 +29,7 @@ export function getTokenGetter(settings: ServiceAccount, service: keyof Aud): To
   }
 }
 
-export function getOauthTokenGetter(settings: ServiceAccount): OauthTokenGetter {
+export function getOauthTokenGetter(settings: ServiceAccount) {
   const tokens = new Map<string, string>();
   const tokenExps = new Map<string, number>();
 
