@@ -55,14 +55,6 @@ export class FirebaseService {
     } else if (authorized !== false) {
       Authorization = `Bearer ${await this.getToken()}`;
     }
-    console.log('fetch:', `${this.apiUrl}${path}?${searchParams}`, {
-      method,
-      body: JSON.stringify(body),
-      headers: {
-        Authorization,
-        'Content-Type': 'application/json',
-      },
-    });
     const response = await fetch(`${this.apiUrl}${path}?${searchParams}`, {
       method,
       body: JSON.stringify(body),
