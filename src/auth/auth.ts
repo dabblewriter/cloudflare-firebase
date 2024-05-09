@@ -4,6 +4,7 @@ import type { Settings } from '../types';
 import type {
   AccountQuery,
   AccountQueryResult,
+  FirebaseUserInfo,
   SignInFirebaseResponse,
   SignInResponse,
   TokenResponse,
@@ -13,50 +14,35 @@ import type {
 
 const returnSecureToken = true; // used for adding boolean in requests
 const uidLength = 28;
+const oauthScope = 'https://www.googleapis.com/auth/identitytoolkit';
+export type GetUsersOptions = {
+  uids?: string[];
+  emails?: string[];
+};
 
 export class Auth extends FirebaseService {
   getToken: (claims?: object) => Promise<string>;
 
   constructor(settings: Settings, apiKey: string) {
-    super(
-      'auth',
-      'https://identitytoolkit.googleapis.com/v1',
-      settings,
-      apiKey
-    );
+    super('auth', 'https://identitytoolkit.googleapis.com/v1', settings, apiKey);
   }
 
   async verify(token: string) {
-    if (typeof token !== 'string')
-      throw new Error('JWT token must be a string');
+    if (typeof token !== 'string') throw new Error('JWT token must be a string');
     const tokenParts = token.split('.');
-    if (tokenParts.length !== 3)
-      throw new Error('JWT token must consist of 3 parts');
+    if (tokenParts.length !== 3) throw new Error('JWT token must consist of 3 parts');
     const {
       header: { alg, kid },
       payload,
     } = jwt.decode(token) as { header: any; payload: any };
     const importAlgorithm = (jwt as any).algorithms[alg];
     if (!importAlgorithm) throw new Error('JWT algorithm not found');
-    if (payload.nbf && payload.nbf > Math.floor(Date.now() / 1000))
-      throw 'JWT token not yet valid';
-    if (payload.exp && payload.exp <= Math.floor(Date.now() / 1000))
-      throw 'JWT token expired';
+    if (payload.nbf && payload.nbf > Math.floor(Date.now() / 1000)) throw 'JWT token not yet valid';
+    if (payload.exp && payload.exp <= Math.floor(Date.now() / 1000)) throw 'JWT token expired';
     const jsonWebKey = await getPublicKey(kid);
-    if (
-      alg !== 'RS256' ||
-      !jsonWebKey ||
-      payload.iss !==
-        `https://securetoken.google.com/${this.settings.projectId}`
-    )
+    if (alg !== 'RS256' || !jsonWebKey || payload.iss !== `https://securetoken.google.com/${this.settings.projectId}`)
       throw new Error('JWT invalid');
-    const key = await crypto.subtle.importKey(
-      'jwk',
-      jsonWebKey,
-      importAlgorithm,
-      false,
-      ['verify']
-    );
+    const key = await crypto.subtle.importKey('jwk', jsonWebKey, importAlgorithm, false, ['verify']);
     const verified = await crypto.subtle.verify(
       importAlgorithm,
       key,
@@ -67,39 +53,24 @@ export class Auth extends FirebaseService {
     return payload;
   }
 
-  async signInWithEmailAndPassword(
-    email: string,
-    password: string
-  ): Promise<SignInResponse> {
+  async signInWithEmailAndPassword(email: string, password: string): Promise<SignInResponse> {
     email = email && email.toLowerCase();
     const data = { email, password, returnSecureToken };
-    const result: SignInFirebaseResponse = await this.userRequest(
-      'POST',
-      'accounts:signInWithPassword',
-      data
-    );
+    const result: SignInFirebaseResponse = await this.userRequest('POST', 'accounts:signInWithPassword', data);
     const tokens = convertSignInResponse(result);
     const user = await this.getUser(tokens.idToken);
     return { user, tokens };
   }
 
   // 0auth signing
-  async signInWithIdp(
-    credentials: string,
-    requestUri: string,
-    returnIdpCredential = false
-  ): Promise<SignInResponse> {
+  async signInWithIdp(credentials: string, requestUri: string, returnIdpCredential = false): Promise<SignInResponse> {
     const data = {
       postBody: credentials,
       requestUri,
       returnSecureToken,
       returnIdpCredential,
     };
-    const result: SignInFirebaseResponse = await this.userRequest(
-      'POST',
-      'accounts:signInWithIdp',
-      data
-    );
+    const result: SignInFirebaseResponse = await this.userRequest('POST', 'accounts:signInWithIdp', data);
     const tokens = convertSignInResponse(result);
 
     const user = await this.getUser(tokens.idToken);
@@ -108,11 +79,7 @@ export class Auth extends FirebaseService {
 
   async signInWithCustomToken(token: string): Promise<SignInResponse> {
     const data = { token, returnSecureToken };
-    const result: SignInFirebaseResponse = await this.userRequest(
-      'POST',
-      'accounts:signInWithCustomToken',
-      data
-    );
+    const result: SignInFirebaseResponse = await this.userRequest('POST', 'accounts:signInWithCustomToken', data);
     const tokens = convertSignInResponse(result);
     const user = await this.getUser(tokens.idToken);
     return { user, tokens };
@@ -120,10 +87,7 @@ export class Auth extends FirebaseService {
 
   async refreshToken(refreshToken: string) {
     const data = { grant_type: 'refresh_token', refresh_token: refreshToken };
-    const result: TokenResponse = await POST(
-      `https://securetoken.googleapis.com/v1/token?key=${this.apiKey}`,
-      data
-    );
+    const result: TokenResponse = await POST(`https://securetoken.googleapis.com/v1/token?key=${this.apiKey}`, data);
     const tokens: Tokens = {
       idToken: result.id_token,
       refreshToken: result.refresh_token,
@@ -146,26 +110,30 @@ export class Auth extends FirebaseService {
   }
 
   async getUser(idTokenOrUID: string) {
-    if (idTokenOrUID.length === uidLength)
-      return (
-        await this.signInWithCustomToken(
-          await this.createCustomToken(idTokenOrUID)
-        )
-      ).user;
-    const response: any = await this.userRequest('POST', 'accounts:lookup', {
-      idToken: idTokenOrUID,
-    });
+    let response: { users: FirebaseUserInfo[] };
+    if (idTokenOrUID.length === uidLength) {
+      response = await this.request('POST', 'accounts:lookup', { localId: [idTokenOrUID] }, oauthScope);
+    } else {
+      response = await this.userRequest('POST', 'accounts:lookup', { idToken: idTokenOrUID });
+    }
     return convertUserData(response.users[0]);
   }
 
-  async getUsers(uids: string[]) {
-    const response: any = await this.request('POST', 'accounts:lookup', {
-      localId: uids,
-    }, 'https://www.googleapis.com/auth/identitytoolkit');
+  async getUsers(options: GetUsersOptions) {
+    const { uids, emails } = options;
+    const response: any = await this.request(
+      'POST',
+      'accounts:lookup',
+      {
+        localId: uids,
+        email: emails,
+      },
+      oauthScope
+    );
     // may not be returned in the same order, we will sort it
     const map = new Map<string, User>();
-    response.users.forEach((data: any) => map.set(data.localId, convertUserData(data)));
-    return uids.map((uid) => map.get(uid));
+    response.users.forEach((data: any) => map.set(uids ? data.localId : data.email, convertUserData(data)));
+    return (uids || emails).map(lookup => map.get(lookup));
   }
 
   async updateUser(idTokenOrUID: string, updates: any) {
@@ -178,8 +146,7 @@ export class Auth extends FirebaseService {
     ) {
       throw new Error('INVALID_DATA');
     }
-    if (idTokenOrUID.length === uidLength)
-      idTokenOrUID = await this.getUserToken(idTokenOrUID);
+    if (idTokenOrUID.length === uidLength) idTokenOrUID = await this.getUserToken(idTokenOrUID);
     const { name, email, photoUrl } = updates;
     updates = {
       displayName: name,
@@ -188,25 +155,15 @@ export class Auth extends FirebaseService {
       idToken: idTokenOrUID,
       returnSecureToken: true,
     };
-    const result = (await this.userRequest(
-      'POST',
-      'accounts:update',
-      updates
-    )) as SignInFirebaseResponse;
+    const result = (await this.userRequest('POST', 'accounts:update', updates)) as SignInFirebaseResponse;
     return convertSignInResponse(result);
   }
 
   async updatePassword(idTokenOrUID: string, password: string) {
-    if (
-      !idTokenOrUID ||
-      typeof idTokenOrUID !== 'string' ||
-      !password ||
-      typeof password !== 'string'
-    ) {
+    if (!idTokenOrUID || typeof idTokenOrUID !== 'string' || !password || typeof password !== 'string') {
       throw new Error('INVALID_DATA');
     }
-    if (idTokenOrUID.length === uidLength)
-      idTokenOrUID = await this.getUserToken(idTokenOrUID);
+    if (idTokenOrUID.length === uidLength) idTokenOrUID = await this.getUserToken(idTokenOrUID);
     const result = (await this.userRequest('POST', 'accounts:update', {
       password,
       idToken: idTokenOrUID,
@@ -216,16 +173,15 @@ export class Auth extends FirebaseService {
   }
 
   async deleteUser(idTokenOrUID: string) {
-    if (idTokenOrUID.length === uidLength)
-      idTokenOrUID = await this.getUserToken(idTokenOrUID);
-    await this.userRequest('POST', 'accounts:delete', {
-      idToken: idTokenOrUID,
-    });
+    if (idTokenOrUID.length === uidLength) {
+      await this.request('POST', 'accounts:delete', { localId: idTokenOrUID }, oauthScope);
+    } else {
+      await this.userRequest('POST', 'accounts:delete', { idToken: idTokenOrUID });
+    }
   }
 
   async sendVerification(idTokenOrUID: string) {
-    if (idTokenOrUID.length === uidLength)
-      idTokenOrUID = await this.getUserToken(idTokenOrUID);
+    if (idTokenOrUID.length === uidLength) idTokenOrUID = await this.getUserToken(idTokenOrUID);
     const data = { requestType: 'VERIFY_EMAIL', idToken: idTokenOrUID };
     await this.userRequest('POST', 'accounts:sendOobCode', data);
   }
@@ -248,11 +204,7 @@ export class Auth extends FirebaseService {
   }
 
   async queryAccounts(options: AccountQuery): Promise<AccountQueryResult> {
-    const result: any = await this.userRequest(
-      'POST',
-      `projects/${this.settings.projectId}/accounts:query`,
-      options
-    );
+    const result: any = await this.userRequest('POST', `projects/${this.settings.projectId}/accounts:query`, options);
     return {
       count: parseInt(result.recordsCount),
       users: result.userInfo?.map(convertUserData),
@@ -265,8 +217,7 @@ export class Auth extends FirebaseService {
   }
 
   async getUserToken(uid: string) {
-    return (await this.signInWithCustomToken(await this.createCustomToken(uid)))
-      .tokens.idToken;
+    return (await this.signInWithCustomToken(await this.createCustomToken(uid))).tokens.idToken;
   }
 }
 
@@ -284,7 +235,7 @@ async function POST<T>(url: string, body: any) {
   return data;
 }
 
-function convertUserData(user: any): User {
+function convertUserData(user: FirebaseUserInfo): User {
   let claims: Record<string, any> = {};
 
   if (user.customAttributes) {
@@ -321,14 +272,9 @@ async function getPublicKey(kid: string): Promise<JsonWebKey> {
     const response = await fetch(
       'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
     );
-    const age = parseInt(
-      response.headers.get('Cache-Control').replace(/^.*max-age=(\d+).*$/, '$1')
-    );
+    const age = parseInt(response.headers.get('Cache-Control').replace(/^.*max-age=(\d+).*$/, '$1'));
     setTimeout(() => (publicKeys = undefined), age * 1000);
-    publicKeys = ((await response.json()) as any).keys.reduce(
-      (map, key) => (map[key.kid] = key) && map,
-      {}
-    );
+    publicKeys = ((await response.json()) as any).keys.reduce((map, key) => (map[key.kid] = key) && map, {});
   }
   return publicKeys[kid];
 }
@@ -336,16 +282,12 @@ async function getPublicKey(kid: string): Promise<JsonWebKey> {
 class Base64URL {
   static parse(s: string) {
     return new Uint8Array(
-      Array.prototype.map.call(
-        atob(s.replace(/-/g, '+').replace(/_/g, '/').replace(/\s/g, '')),
-        (c: string) => c.charCodeAt(0)
+      Array.prototype.map.call(atob(s.replace(/-/g, '+').replace(/_/g, '/').replace(/\s/g, '')), (c: string) =>
+        c.charCodeAt(0)
       )
     );
   }
   static stringify(a: string) {
-    return btoa(String.fromCharCode.apply(0, a))
-      .replace(/=/g, '')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_');
+    return btoa(String.fromCharCode.apply(0, a)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
   }
 }

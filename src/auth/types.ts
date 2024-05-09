@@ -28,6 +28,67 @@ export interface SignInFirebaseResponse {
   isNewUser?: boolean; // Is the firebase user new (used for google onetap)
 }
 
+export interface FirebaseProviderUserInfo {
+  providerId: string;
+  displayName: string;
+  photoUrl: string;
+  federatedId: string;
+  email: string;
+  rawId: string;
+  screenName: string;
+  phoneNumber: string;
+}
+
+export interface FirebaseEmailInfo {
+  emailAddress: string;
+}
+
+export interface FirebaseMfaEnrollment {
+  mfaEnrollmentId: string;
+  displayName: string;
+  enrolledAt: string;
+
+  // Union field mfa_value can be only one of the following:
+  phoneInfo: string;
+  totpInfo: {};
+  emailInfo: FirebaseEmailInfo;
+  // End of list of possible types for union field mfa_value.
+
+  // Union field unobfuscated_mfa_value can be only one of the following:
+  unobfuscatedPhoneInfo: string;
+  // End of list of possible types for union field unobfuscated_mfa_value.
+}
+
+export interface FirebaseUserInfo {
+  localId: string;
+  email: string;
+  displayName: string;
+  language: string;
+  photoUrl: string;
+  timeZone: string;
+  dateOfBirth: string;
+  passwordHash: string;
+  salt: string;
+  version: number;
+  emailVerified: boolean;
+  passwordUpdatedAt: number;
+  providerUserInfo: FirebaseProviderUserInfo[];
+  validSince: string;
+  disabled: boolean;
+  lastLoginAt: string;
+  createdAt: string;
+  screenName: string;
+  customAuth: boolean;
+  rawPassword: string;
+  phoneNumber: string;
+  customAttributes: string;
+  emailLinkSignin: boolean;
+  tenantId: string;
+  mfaInfo: FirebaseMfaEnrollment[];
+  initialEmail: string;
+  lastRefreshAt: string;
+}
+
 export interface Tokens {
   idToken: string; // A Firebase Auth ID token for the authenticated user.
   refreshToken: string; // A Firebase Auth refresh token for the authenticated user.
@@ -68,10 +129,7 @@ export type AccountQuerySort =
   | 'LAST_LOGIN_AT'
   | 'USER_EMAIL';
 export type AccountQueryOrder = 'ORDER_UNSPECIFIED' | 'ASC' | 'DESC';
-export type AccountQueryExpression =
-  | { email: string }
-  | { userId: string }
-  | { phoneNumber: string };
+export type AccountQueryExpression = { email: string } | { userId: string } | { phoneNumber: string };
 
 export interface AccountQuery {
   returnUserInfo?: boolean; // default true, if false the count will be returned
