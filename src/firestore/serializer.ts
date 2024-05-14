@@ -22,7 +22,7 @@ export function encodeValue(value: any, collector?: UpdateCollector) {
   if (typeof value === 'number') return { doubleValue: '' + value };
   if (value instanceof FieldValue) {
     collector?.transform(value);
-    collector?.removeField();
+    return;
   }
   if (value instanceof Date) return { timestampValue: value.toISOString() };
   if (value.qualifiedPath) return { referenceValue: value.qualifiedPath };
