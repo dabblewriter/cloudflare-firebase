@@ -163,12 +163,25 @@ export class Auth extends FirebaseService {
     if (!idTokenOrUID || typeof idTokenOrUID !== 'string' || !password || typeof password !== 'string') {
       throw new Error('INVALID_DATA');
     }
-    if (idTokenOrUID.length === uidLength) idTokenOrUID = await this.getUserToken(idTokenOrUID);
-    const result = (await this.userRequest('POST', 'accounts:update', {
-      password,
-      idToken: idTokenOrUID,
-      returnSecureToken,
-    })) as SignInFirebaseResponse;
+    let result: SignInFirebaseResponse;
+    if (idTokenOrUID.length === uidLength) {
+      result = await this.request<SignInFirebaseResponse>(
+        'POST',
+        'accounts:update',
+        {
+          password,
+          localId: idTokenOrUID,
+          returnSecureToken,
+        },
+        oauthScope
+      );
+    } else {
+      result = await this.userRequest<SignInFirebaseResponse>('POST', 'accounts:update', {
+        password,
+        idToken: idTokenOrUID,
+        returnSecureToken,
+      });
+    }
     return convertSignInResponse(result);
   }
 
