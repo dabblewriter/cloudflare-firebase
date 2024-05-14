@@ -67,7 +67,12 @@ export async function createToken(serviceAccount: ServiceAccount, service: keyof
     },
     serviceAccount.privateKey,
     {
-      algorithm: 'RS256', keyid: serviceAccount.privateKeyId
+      algorithm: 'RS256',
+      header: {
+        typ: 'JWT',
+        alg: 'RS256',
+        kid: serviceAccount.privateKeyId,
+      },
     }
   );
 }
