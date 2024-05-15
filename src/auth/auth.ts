@@ -221,7 +221,12 @@ export class Auth extends FirebaseService {
   }
 
   async queryAccounts(options: AccountQuery): Promise<AccountQueryResult> {
-    const result: any = await this.userRequest('POST', `projects/${this.settings.projectId}/accounts:query`, options);
+    const result: any = await this.request(
+      'POST',
+      `projects/${this.settings.projectId}/accounts:query`,
+      options,
+      oauthScope
+    );
     return {
       count: parseInt(result.recordsCount),
       users: result.userInfo?.map(convertUserData),
