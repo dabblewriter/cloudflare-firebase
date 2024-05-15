@@ -116,7 +116,11 @@ export class Auth extends FirebaseService {
     } else {
       response = await this.userRequest('POST', 'accounts:lookup', { idToken: idTokenOrUID });
     }
-    return convertUserData(response.users[0]);
+    if (response.users?.length) {
+      return convertUserData(response.users[0]);
+    } else {
+      return null;
+    }
   }
 
   async getUsers(options: GetUsersOptions) {
@@ -132,8 +136,8 @@ export class Auth extends FirebaseService {
     );
     // may not be returned in the same order, we will sort it
     const map = new Map<string, User>();
-    response.users.forEach((data: any) => map.set(uids ? data.localId : data.email, convertUserData(data)));
-    return (uids || emails).map(lookup => map.get(lookup));
+    (response.users || []).forEach((data: any) => map.set(uids ? data.localId : data.email, convertUserData(data)));
+    return (uids || emails).map(lookup => map.get(lookup) || null);
   }
 
   async updateUser(idTokenOrUID: string, updates: any) {
