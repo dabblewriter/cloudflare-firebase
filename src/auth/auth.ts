@@ -136,7 +136,7 @@ export class Auth extends FirebaseService {
     );
     // may not be returned in the same order, we will sort it
     const map = new Map<string, User>();
-    (response.users || []).forEach((data: any) => map.set(uids ? data.localId : data.email, convertUserData(data)));
+    (response?.users || []).forEach((data: any) => map.set(uids ? data.localId : data.email, convertUserData(data)));
     return (uids || emails).map(lookup => map.get(lookup) || null);
   }
 
